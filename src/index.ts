@@ -10,7 +10,7 @@ const mcpServer = new McpServer();
 app.use('*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization', 'Accept', 'Mcp-Session-Id'],
+  allowHeaders: ['Content-Type', 'Accept', 'Mcp-Session-Id'],
 }));
 
 // ヘルスチェック
