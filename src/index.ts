@@ -10,7 +10,7 @@ const mcpServer = new McpServer();
 app.use('*', cors({
   origin: '*',
   allowMethods: ['GET', 'POST', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
+  allowHeaders: ['Content-Type', 'Authorization', 'Accept', 'Mcp-Session-Id'],
 }));
 
 // ヘルスチェック
@@ -22,6 +22,14 @@ app.get('/', (c) => {
     endpoints: {
       mcp: '/mcp',
       health: '/'
+    },
+    protocol: {
+      version: '2024-11-05',
+      capabilities: ['tools']
+    },
+    usage: {
+      connect: 'Add "https://ulid-generator-mcp.1125katanohimeji0521.workers.dev/mcp" to Claude Desktop integrations',
+      test: 'Use MCP Inspector: npx @modelcontextprotocol/inspector https://ulid-generator-mcp.1125katanohimeji0521.workers.dev/mcp'
     }
   });
 });
@@ -29,24 +37,36 @@ app.get('/', (c) => {
 // MCP HTTP Streamableエンドポイント
 app.post('/mcp', async (c) => {
   try {
+    const acceptHeader = c.req.header('Accept') || 'application/json';
+    const sessionId = c.req.header('Mcp-Session-Id');
+    
     const body = await c.req.json();
     
     // リクエストのバリデーション
     if (!body || typeof body !== 'object') {
-      return c.json({
+      const errorResponse = {
         jsonrpc: '2.0',
         id: null,
         error: {
           code: -32700,
           message: 'Parse error'
         }
-      }, 400);
+      };
+      
+      if (acceptHeader.includes('text/event-stream')) {
+        return streamResponse(c, errorResponse, sessionId);
+      }
+      return c.json(errorResponse, 400);
     }
 
     // 単一リクエストの処理
     if (body.jsonrpc && body.method) {
       const request: McpRequest = body;
       const response = mcpServer.handleRequest(request);
+      
+      if (acceptHeader.includes('text/event-stream')) {
+        return streamResponse(c, response, sessionId);
+      }
       return c.json(response);
     }
 
@@ -66,30 +86,67 @@ app.post('/mcp', async (c) => {
           };
         }
       });
+      
+      if (acceptHeader.includes('text/event-stream')) {
+        return streamResponse(c, responses, sessionId);
+      }
       return c.json(responses);
     }
 
-    return c.json({
+    const errorResponse = {
       jsonrpc: '2.0',
       id: null,
       error: {
         code: -32600,
         message: 'Invalid Request'
       }
-    }, 400);
+    };
+    
+    if (acceptHeader.includes('text/event-stream')) {
+      return streamResponse(c, errorResponse, sessionId);
+    }
+    return c.json(errorResponse, 400);
 
   } catch (error) {
     console.error('MCP request processing error:', error);
-    return c.json({
+    const errorResponse = {
       jsonrpc: '2.0',
       id: null,
       error: {
         code: -32700,
         message: 'Parse error'
       }
-    }, 400);
+    };
+    
+    const acceptHeader = c.req.header('Accept') || 'application/json';
+    const sessionId = c.req.header('Mcp-Session-Id');
+    
+    if (acceptHeader.includes('text/event-stream')) {
+      return streamResponse(c, errorResponse, sessionId);
+    }
+    return c.json(errorResponse, 400);
   }
 });
+
+// Server-Sent Events (SSE) ストリーミングレスポンス
+function streamResponse(c: any, data: any, sessionId?: string) {
+  const headers: Record<string, string> = {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+  };
+  
+  if (sessionId) {
+    headers['Mcp-Session-Id'] = sessionId;
+  }
+  
+  const eventData = `data: ${JSON.stringify(data)}\n\n`;
+  
+  return new Response(eventData, {
+    status: 200,
+    headers
+  });
+}
 
 // OPTIONS リクエストの処理
 app.options('/mcp', (c) => {
