@@ -1,13 +1,8 @@
-import { ulid, monotonicFactory, decodeTime } from 'ulid';
-
-// CloudFlare Workers用のランダム関数を設定
-// ULIDライブラリのPRNG型: () => number (0-1の範囲の浮動小数点数)
-const prng = () => {
-  // CloudFlare Workersのcrypto.getRandomValuesを使用して0-1の乱数を生成
-  const array = new Uint32Array(1);
-  crypto.getRandomValues(array);
-  return array[0] / (0xffffffff + 1);
-};
+import { 
+  generateCloudflareUlid, 
+  CloudflareMonotonicUlidGenerator, 
+  parseCloudflareUlid 
+} from './ulid-cloudflare';
 
 export interface UlidGeneratorOptions {
   seedTime?: number;
@@ -24,15 +19,7 @@ export interface UlidGenerationResult {
  * タイムスタンプとクリプトセキュアな擬似乱数生成アルゴリズムによって生成されたランダムビットを組み合わせて生成
  */
 export function generateStandardUlid(): UlidGenerationResult {
-  const generated = ulid();
-  const timestamp = Date.now();
-  const randomness = generated.slice(10); // ULIDの後半10文字がランダム部分
-  
-  return {
-    ulid: generated,
-    timestamp,
-    randomness
-  };
+  return generateCloudflareUlid();
 }
 
 /**
@@ -41,15 +28,7 @@ export function generateStandardUlid(): UlidGenerationResult {
  * ランダムビット（残り8バイト）は異なるため、異なるULIDが生成される
  */
 export function generateSeededUlid(options: UlidGeneratorOptions): UlidGenerationResult {
-  const seedTime = options.seedTime || Date.now();
-  const generated = ulid(seedTime);
-  const randomness = generated.slice(10);
-  
-  return {
-    ulid: generated,
-    timestamp: seedTime,
-    randomness
-  };
+  return generateCloudflareUlid(options.seedTime);
 }
 
 /**
@@ -58,27 +37,19 @@ export function generateSeededUlid(options: UlidGeneratorOptions): UlidGeneratio
  * 厳密な順序付けがされたULIDを生成
  */
 export class MonotonicUlidGenerator {
-  private generator: ReturnType<typeof monotonicFactory>;
+  private generator: CloudflareMonotonicUlidGenerator;
   
   constructor(private seedTime?: number) {
-    this.generator = monotonicFactory();
+    this.generator = new CloudflareMonotonicUlidGenerator(seedTime);
   }
   
   generateMonotonicUlid(): UlidGenerationResult {
-    const timestamp = this.seedTime || Date.now();
-    const generated = this.generator(timestamp);
-    const randomness = generated.slice(10);
-    
-    return {
-      ulid: generated,
-      timestamp,
-      randomness
-    };
+    return this.generator.generateMonotonicUlid();
   }
   
   reset(seedTime?: number): void {
     this.seedTime = seedTime;
-    this.generator = monotonicFactory();
+    this.generator.reset(seedTime);
   }
 }
 
@@ -97,22 +68,6 @@ export function generateMonotonicUlid(options?: UlidGeneratorOptions): UlidGener
  * ULIDの詳細情報を取得
  */
 export function parseUlid(ulidString: string) {
-  if (ulidString.length !== 26) {
-    throw new Error('Invalid ULID length');
-  }
-  
-  const timestampPart = ulidString.slice(0, 10);
-  const randomnessPart = ulidString.slice(10);
-  
-  // ULIDライブラリのdecodeTime関数を使用してタイムスタンプを取得
-  const timestamp = decodeTime(ulidString);
-  
-  return {
-    ulid: ulidString,
-    timestampPart,
-    randomnessPart,
-    timestamp,
-    date: new Date(timestamp)
-  };
+  return parseCloudflareUlid(ulidString);
 }
 
