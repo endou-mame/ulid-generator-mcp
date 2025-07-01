@@ -32,7 +32,14 @@ export class McpServer {
       description: 'タイムスタンプとクリプトセキュアな擬似乱数生成アルゴリズムによって生成されたランダムビットを組み合わせた標準的なULIDを生成します',
       inputSchema: {
         type: 'object',
-        properties: {},
+        properties: {
+          count: {
+            type: 'number',
+            description: '生成するULIDの個数（1-100、省略時は1）',
+            minimum: 1,
+            maximum: 100
+          }
+        },
         required: []
       }
     },
@@ -45,6 +52,12 @@ export class McpServer {
           seedTime: {
             type: 'number',
             description: 'シードとして使用するタイムスタンプ（ミリ秒）。省略時は現在時刻を使用'
+          },
+          count: {
+            type: 'number',
+            description: '生成するULIDの個数（1-100、省略時は1）',
+            minimum: 1,
+            maximum: 100
           }
         },
         required: []
@@ -59,6 +72,12 @@ export class McpServer {
           seedTime: {
             type: 'number',
             description: 'シードとして使用するタイムスタンプ（ミリ秒）。省略時は現在時刻を使用'
+          },
+          count: {
+            type: 'number',
+            description: '生成するULIDの個数（1-100、省略時は1）',
+            minimum: 1,
+            maximum: 100
           }
         },
         required: []
@@ -184,37 +203,55 @@ export class McpServer {
 
     switch (params.name) {
       case 'generate_standard_ulid': {
-        const result = generateStandardUlid();
+        const count = Math.min(Math.max(args.count || 1, 1), 100);
+        const results = [];
+        
+        for (let i = 0; i < count; i++) {
+          results.push(generateStandardUlid());
+        }
+        
         return {
           content: [{
             type: 'text',
-            text: JSON.stringify(result, null, 2)
+            text: JSON.stringify(count === 1 ? results[0] : results, null, 2)
           }]
         };
       }
 
       case 'generate_seeded_ulid': {
+        const count = Math.min(Math.max(args.count || 1, 1), 100);
         const options: UlidGeneratorOptions = {
           seedTime: args.seedTime
         };
-        const result = generateSeededUlid(options);
+        const results = [];
+        
+        for (let i = 0; i < count; i++) {
+          results.push(generateSeededUlid(options));
+        }
+        
         return {
           content: [{
             type: 'text',
-            text: JSON.stringify(result, null, 2)
+            text: JSON.stringify(count === 1 ? results[0] : results, null, 2)
           }]
         };
       }
 
       case 'generate_monotonic_ulid': {
+        const count = Math.min(Math.max(args.count || 1, 1), 100);
         const options: UlidGeneratorOptions = {
           seedTime: args.seedTime
         };
-        const result = generateMonotonicUlid(options);
+        const results = [];
+        
+        for (let i = 0; i < count; i++) {
+          results.push(generateMonotonicUlid(options));
+        }
+        
         return {
           content: [{
             type: 'text',
-            text: JSON.stringify(result, null, 2)
+            text: JSON.stringify(count === 1 ? results[0] : results, null, 2)
           }]
         };
       }

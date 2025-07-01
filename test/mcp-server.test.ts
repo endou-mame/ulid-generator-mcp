@@ -92,6 +92,62 @@ describe('McpServer', () => {
       expect(resultData.randomness).toHaveLength(16);
     });
 
+    it('generate_standard_ulidツールで複数のULIDを生成できること', () => {
+      const request: McpRequest = {
+        jsonrpc: '2.0',
+        id: 3.1,
+        method: 'tools/call',
+        params: {
+          name: 'generate_standard_ulid',
+          arguments: { count: 5 }
+        }
+      };
+
+      const response = server.handleRequest(request);
+
+      expect(response.jsonrpc).toBe('2.0');
+      expect(response.id).toBe(3.1);
+      expect(response.result).toBeDefined();
+      
+      const resultData = JSON.parse(response.result.content[0].text);
+      expect(resultData).toBeInstanceOf(Array);
+      expect(resultData).toHaveLength(5);
+      
+      // 各ULIDが正しい形式であることを確認
+      resultData.forEach((item: any) => {
+        expect(item.ulid).toHaveLength(26);
+        expect(item.timestamp).toBeTypeOf('number');
+        expect(item.randomness).toHaveLength(16);
+      });
+      
+      // ULIDが全て異なることを確認
+      const ulids = resultData.map((item: any) => item.ulid);
+      const uniqueUlids = new Set(ulids);
+      expect(uniqueUlids.size).toBe(5);
+    });
+
+    it('generate_standard_ulidツールで最大100個を超えても100個に制限されること', () => {
+      const request: McpRequest = {
+        jsonrpc: '2.0',
+        id: 3.2,
+        method: 'tools/call',
+        params: {
+          name: 'generate_standard_ulid',
+          arguments: { count: 150 }
+        }
+      };
+
+      const response = server.handleRequest(request);
+
+      expect(response.jsonrpc).toBe('2.0');
+      expect(response.id).toBe(3.2);
+      expect(response.result).toBeDefined();
+      
+      const resultData = JSON.parse(response.result.content[0].text);
+      expect(resultData).toBeInstanceOf(Array);
+      expect(resultData).toHaveLength(100);
+    });
+
     it('generate_seeded_ulidツールをシードタイム付きで実行できること', () => {
       const seedTime = 1640995200000;
       const request: McpRequest = {
@@ -116,6 +172,41 @@ describe('McpServer', () => {
       expect(resultData.randomness).toHaveLength(16);
     });
 
+    it('generate_seeded_ulidツールで複数のULIDを生成できること', () => {
+      const seedTime = 1640995200000;
+      const request: McpRequest = {
+        jsonrpc: '2.0',
+        id: 4.1,
+        method: 'tools/call',
+        params: {
+          name: 'generate_seeded_ulid',
+          arguments: { seedTime, count: 3 }
+        }
+      };
+
+      const response = server.handleRequest(request);
+
+      expect(response.jsonrpc).toBe('2.0');
+      expect(response.id).toBe(4.1);
+      expect(response.result).toBeDefined();
+      
+      const resultData = JSON.parse(response.result.content[0].text);
+      expect(resultData).toBeInstanceOf(Array);
+      expect(resultData).toHaveLength(3);
+      
+      // 各ULIDが同じタイムスタンプを持つことを確認
+      resultData.forEach((item: any) => {
+        expect(item.ulid).toHaveLength(26);
+        expect(item.timestamp).toBe(seedTime);
+        expect(item.randomness).toHaveLength(16);
+      });
+      
+      // ランダム部分が全て異なることを確認
+      const randomParts = resultData.map((item: any) => item.randomness);
+      const uniqueRandomParts = new Set(randomParts);
+      expect(uniqueRandomParts.size).toBe(3);
+    });
+
     it('generate_monotonic_ulidツールを実行できること', () => {
       const seedTime = 1640995200000;
       const request: McpRequest = {
@@ -138,6 +229,41 @@ describe('McpServer', () => {
       expect(resultData.ulid).toHaveLength(26);
       expect(resultData.timestamp).toBe(seedTime);
       expect(resultData.randomness).toHaveLength(16);
+    });
+
+    it('generate_monotonic_ulidツールで複数のULIDを単調増加で生成できること', () => {
+      const seedTime = 1640995200000;
+      const request: McpRequest = {
+        jsonrpc: '2.0',
+        id: 5.1,
+        method: 'tools/call',
+        params: {
+          name: 'generate_monotonic_ulid',
+          arguments: { seedTime, count: 5 }
+        }
+      };
+
+      const response = server.handleRequest(request);
+
+      expect(response.jsonrpc).toBe('2.0');
+      expect(response.id).toBe(5.1);
+      expect(response.result).toBeDefined();
+      
+      const resultData = JSON.parse(response.result.content[0].text);
+      expect(resultData).toBeInstanceOf(Array);
+      expect(resultData).toHaveLength(5);
+      
+      // 各ULIDが同じタイムスタンプを持つことを確認
+      resultData.forEach((item: any) => {
+        expect(item.ulid).toHaveLength(26);
+        expect(item.timestamp).toBe(seedTime);
+        expect(item.randomness).toHaveLength(16);
+      });
+      
+      // ULIDが単調増加していることを確認
+      for (let i = 1; i < resultData.length; i++) {
+        expect(resultData[i].ulid > resultData[i - 1].ulid).toBe(true);
+      }
     });
 
     it('parse_ulidツールを実行できること', () => {
