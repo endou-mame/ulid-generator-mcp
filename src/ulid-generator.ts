@@ -1,5 +1,13 @@
 import { ulid, monotonicFactory, decodeTime } from 'ulid';
 
+// CloudFlare Workers用のランダム関数を設定
+const prng = () => {
+  // CloudFlare Workersのcrypto.getRandomValuesを使用
+  const buffer = new Uint8Array(16);
+  crypto.getRandomValues(buffer);
+  return buffer;
+};
+
 export interface UlidGeneratorOptions {
   seedTime?: number;
 }
@@ -15,7 +23,7 @@ export interface UlidGenerationResult {
  * タイムスタンプとクリプトセキュアな擬似乱数生成アルゴリズムによって生成されたランダムビットを組み合わせて生成
  */
 export function generateStandardUlid(): UlidGenerationResult {
-  const generated = ulid();
+  const generated = ulid(undefined, prng);
   const timestamp = Date.now();
   const randomness = generated.slice(10); // ULIDの後半10文字がランダム部分
   
@@ -33,7 +41,7 @@ export function generateStandardUlid(): UlidGenerationResult {
  */
 export function generateSeededUlid(options: UlidGeneratorOptions): UlidGenerationResult {
   const seedTime = options.seedTime || Date.now();
-  const generated = ulid(seedTime);
+  const generated = ulid(seedTime, prng);
   const randomness = generated.slice(10);
   
   return {
@@ -52,7 +60,7 @@ export class MonotonicUlidGenerator {
   private generator: ReturnType<typeof monotonicFactory>;
   
   constructor(private seedTime?: number) {
-    this.generator = monotonicFactory();
+    this.generator = monotonicFactory(prng);
   }
   
   generateMonotonicUlid(): UlidGenerationResult {
@@ -69,7 +77,7 @@ export class MonotonicUlidGenerator {
   
   reset(seedTime?: number): void {
     this.seedTime = seedTime;
-    this.generator = monotonicFactory();
+    this.generator = monotonicFactory(prng);
   }
 }
 
