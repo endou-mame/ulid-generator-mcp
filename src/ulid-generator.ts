@@ -1,4 +1,4 @@
-import { ulid, monotonicFactory } from 'ulid';
+import { ulid, monotonicFactory, decodeTime } from 'ulid';
 
 export interface UlidGeneratorOptions {
   seedTime?: number;
@@ -95,8 +95,8 @@ export function parseUlid(ulidString: string) {
   const timestampPart = ulidString.slice(0, 10);
   const randomnessPart = ulidString.slice(10);
   
-  // Crockford's Base32をデコードしてタイムスタンプを取得
-  const timestamp = decodeTime(timestampPart);
+  // ULIDライブラリのdecodeTime関数を使用してタイムスタンプを取得
+  const timestamp = decodeTime(ulidString);
   
   return {
     ulid: ulidString,
@@ -107,18 +107,3 @@ export function parseUlid(ulidString: string) {
   };
 }
 
-function decodeTime(encoded: string): number {
-  const ENCODING = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-  let time = 0;
-  
-  for (let i = 0; i < encoded.length; i++) {
-    const char = encoded[i];
-    const index = ENCODING.indexOf(char);
-    if (index === -1) {
-      throw new Error(`Invalid character in ULID: ${char}`);
-    }
-    time = time * 32 + index;
-  }
-  
-  return time;
-}

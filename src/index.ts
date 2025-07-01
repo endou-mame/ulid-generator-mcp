@@ -93,7 +93,7 @@ app.post('/mcp', async (c) => {
 
 // OPTIONS リクエストの処理
 app.options('/mcp', (c) => {
-  return c.text('', 204);
+  return new Response('', { status: 204 });
 });
 
 // 404エラーハンドリング

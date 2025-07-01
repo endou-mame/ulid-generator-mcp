@@ -141,7 +141,7 @@ describe('McpServer', () => {
     });
 
     it('parse_ulidツールを実行できること', () => {
-      const testUlid = '01FN2GZJZK0000000000000000';
+      const testUlid = '01FR9EZ700RPB9GR0NVWG3MYFY';
       const request: McpRequest = {
         jsonrpc: '2.0',
         id: 6,
@@ -160,8 +160,8 @@ describe('McpServer', () => {
       
       const resultData = JSON.parse(response.result.content[0].text);
       expect(resultData.ulid).toBe(testUlid);
-      expect(resultData.timestampPart).toBe('01FN2GZJZK');
-      expect(resultData.randomnessPart).toBe('0000000000000000');
+      expect(resultData.timestampPart).toBe('01FR9EZ700');
+      expect(resultData.randomnessPart).toBe('RPB9GR0NVWG3MYFY');
       expect(resultData.timestamp).toBe(1640995200000);
     });
 
